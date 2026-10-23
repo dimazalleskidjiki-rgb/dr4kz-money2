@@ -15,7 +15,7 @@ const DEFAULTS = {
   autoLevel: 0,
   autoPrice: 250,
   multiplier: 1,
-  playerName: "DR4KZ",
+  playerName: "Ведите имя",
   avatar: "😎",
   theme: "purple",
   xp: 0,
