@@ -1,0 +1,179 @@
+
+:root {
+  --bg: #100d1c;
+  --card: #1e1930;
+  --accent: #a78bfa;
+  --accent2: #7c3aed;
+  --text: #f7f4ff;
+  --muted: #b5abc9;
+  --border: #39304e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, Arial, sans-serif;
+}
+
+body[data-theme="blue"] {
+  --bg: #091521;
+  --card: #122638;
+  --accent: #60a5fa;
+  --accent2: #2563eb;
+  --border: #24445d;
+}
+
+body[data-theme="green"] {
+  --bg: #0b1914;
+  --card: #142b21;
+  --accent: #4ade80;
+  --accent2: #15803d;
+  --border: #28553c;
+}
+
+body[data-theme="red"] {
+  --bg: #1b0b12;
+  --card: #30151f;
+  --accent: #fb7185;
+  --accent2: #be123c;
+  --border: #572838;
+}
+
+.app {
+  width: min(100% - 24px, 540px);
+  margin: 0 auto;
+  padding: 18px 0 35px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.logo { font-size: 25px; font-weight: 900; letter-spacing: 1px; }
+.logo span { color: var(--accent); }
+small, .muted { color: var(--muted); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 17px;
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+
+h2 { margin: 0 0 14px; font-size: 19px; }
+h2 + p { margin-top: 0; }
+
+.profile { display: flex; align-items: center; gap: 14px; }
+
+.avatar {
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  flex: 0 0 62px;
+  font-size: 34px;
+  border-radius: 50%;
+}
+
+.profileInfo { flex: 1; min-width: 0; }
+#playerName { margin: 0 0 7px; }
+
+.progress {
+  height: 8px;
+  background: var(--bg);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 7px;
+}
+
+#xpBar {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width .2s;
+}
+
+.balanceCard { text-align: center; padding: 23px 15px; }
+.balance { font-size: clamp(32px, 10vw, 46px); font-weight: 900; margin: 8px 0; }
+.coin {
+  display: block;
+  margin: 18px auto;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  font-size: 54px;
+  background: linear-gradient(145deg, #fcd34d, #f59e0b);
+  box-shadow: 0 8px 0 #92400e, 0 0 30px #f59e0b44;
+  border: 3px solid #fde68a;
+}
+.coin:active { transform: translateY(5px); box-shadow: 0 3px 0 #92400e; }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { padding: 12px 8px; display: flex; flex-direction: column; gap: 7px; }
+.stat b { font-size: 16px; overflow-wrap: anywhere; }
+
+button, input, select {
+  font: inherit;
+  border-radius: 11px;
+}
+
+button {
+  border: 0;
+  padding: 12px 14px;
+  background: var(--accent2);
+  color: white;
+  font-weight: 750;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+button:active { transform: scale(.98); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.secondary { background: var(--border); }
+.danger { background: #b91c1c; }
+
+.card > button { width: 100%; margin-top: 8px; }
+.top button { width: auto; margin: 0; }
+.buttonGrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.stack { display: grid; gap: 9px; }
+
+.pet {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+}
+.pet button { width: auto; margin: 0; }
+
+label { display: block; margin: 12px 0 6px; color: var(--muted); }
+input, select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+input:focus, select:focus { outline: 2px solid var(--accent); }
+
+hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
+.message { text-align: center; color: var(--accent); min-height: 24px; margin: 12px 0; }
+footer { text-align: center; font-size: 12px; color: var(--muted); padding: 10px; }
+[hidden] { display: none !important; }
+
+@media (min-width: 420px) {
+  .buttonGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

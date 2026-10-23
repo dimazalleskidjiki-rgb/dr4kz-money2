@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DR4KZ MONEY ULTIMATE</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div>
+        <div class="logo">DR4KZ <span>MONEY</span></div>
+        <small>ULTIMATE EDITION</small>
+      </div>
+      <button id="openAdmin" class="secondary">👑 Админ</button>
+    </header>
+
+    <section class="card profile">
+      <button id="avatarBtn" class="avatar">😎</button>
+      <div class="profileInfo">
+        <input id="playerName" maxlength="20" placeholder="Имя игрока">
+        <div id="rank">Новичок</div>
+        <div>Уровень <b id="level">1</b> · XP <b id="xp">0</b></div>
+        <div class="progress"><div id="xpBar"></div></div>
+      </div>
+    </section>
+
+    <section class="card balanceCard">
+      <div class="muted">ТВОЙ БАЛАНС</div>
+      <div class="balance"><span id="balance">0</span> $</div>
+      <div class="muted">Доход за клик: <b id="clickIncome">1</b> $</div>
+      <button id="clickButton" class="coin">💰</button>
+      <div class="muted">Нажимай, чтобы зарабатывать!</div>
+    </section>
+
+    <section class="stats">
+      <div class="card stat"><small>Клики</small><b id="clicks">0</b></div>
+      <div class="card stat"><small>Всего заработано</small><b id="totalEarned">0 $</b></div>
+      <div class="card stat"><small>Перерождения</small><b id="rebirths">0</b></div>
+    </section>
+
+    <section class="card">
+      <h2>🛒 Улучшения</h2>
+      <p>Сила клика: <b id="power">1</b></p>
+      <p>Цена: <b id="upgradePrice">50</b> $</p>
+      <button id="buyUpgrade">Улучшить клик</button>
+      <hr>
+      <p>Авто-доход: <b id="autoIncome">0</b> $/сек.</p>
+      <p>Цена: <b id="autoPrice">250</b> $</p>
+      <button id="buyAuto">Купить авто-доход</button>
+    </section>
+
+    <section class="card">
+      <h2>✖️ Множитель</h2>
+      <p>Текущий: ×<b id="multiplier">1</b></p>
+      <div class="buttonGrid">
+        <button class="secondary" data-mult="2">×2 — 500 $</button>
+        <button class="secondary" data-mult="5">×5 — 5000 $</button>
+        <button class="secondary" data-mult="10">×10 — 25000 $</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🎁 Ежедневная награда</h2>
+      <p id="dailyInfo">Заходи каждый день за бонусом!</p>
+      <button id="dailyButton">Забрать награду</button>
+    </section>
+
+    <section class="card">
+      <h2>🐾 Питомцы</h2>
+      <p class="muted">Питомцы увеличивают доход за клик.</p>
+      <div id="pets" class="stack"></div>
+    </section>
+
+    <section class="card">
+      <h2>♻️ Перерождение</h2>
+      <p>Требуется баланс: <b id="rebirthCost">100000</b> $</p>
+      <p>Постоянный множитель: ×<b id="rebirthBonus">1</b></p>
+      <button id="rebirthButton" class="danger">Переродиться</button>
+      <small>Перерождение сбрасывает обычный прогресс, но сохраняет питомцев и постоянный бонус.</small>
+    </section>
+
+    <section class="card">
+      <h2>⚙️ Настройки</h2>
+      <label>Тема</label>
+      <select id="theme">
+        <option value="purple">Фиолетовая</option>
+        <option value="blue">Синяя</option>
+        <option value="green">Зелёная</option>
+        <option value="red">Красная</option>
+      </select>
+      <button id="saveButton" class="secondary">Сохранить</button>
+      <button id="resetButton" class="danger">Сбросить прогресс</button>
+    </section>
+
+    <section id="adminPanel" class="card" hidden>
+      <h2>👑 PRO-админка</h2>
+      <p class="muted">Локальная панель для тестирования игры.</p>
+
+      <label>Выдать деньги</label>
+      <input id="adminMoney" type="number" min="0" value="1000">
+      <button id="giveMoney">Выдать деньги</button>
+
+      <label>Выдать опыт</label>
+      <input id="adminXP" type="number" min="0" value="100">
+      <button id="giveXP">Выдать XP</button>
+
+      <label>Сила клика</label>
+      <input id="adminPower" type="number" min="1" value="1">
+
+      <label>Множитель</label>
+      <select id="adminMultiplier">
+        <option value="1">×1</option>
+        <option value="2">×2</option>
+        <option value="5">×5</option>
+        <option value="10">×10</option>
+      </select>
+
+      <label>Авто-доход в секунду</label>
+      <input id="adminAuto" type="number" min="0" value="0">
+
+      <label>Бонус за клик</label>
+      <input id="adminBonus" type="number" min="0" value="0">
+
+      <label>Цены магазина (%)</label>
+      <input id="adminPrices" type="number" min="10" max="1000" value="100">
+
+      <label>Магазин</label>
+      <select id="adminShop">
+        <option value="on">Включён</option>
+        <option value="off">Выключен</option>
+      </select>
+
+      <label>Обслуживание</label>
+      <select id="adminMaintenance">
+        <option value="off">Выключено</option>
+        <option value="on">Включено</option>
+      </select>
+
+      <button id="applyAdmin">Применить настройки</button>
+      <button id="closeAdmin" class="secondary">Закрыть админку</button>
+    </section>
+
+    <div id="message" class="message" role="status"></div>
+    <footer>DR4KZ MONEY · Прогресс сохраняется на устройстве</footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
