@@ -29,7 +29,13 @@ const DEFAULTS = {
   adminAutoOverride: null,
   pricePercent: 100,
   shopEnabled: true,
-  maintenance: false
+  maintenance: false,
+  businesses: {
+    lemonade: 0,
+    shop: 0,
+    gas: 0,
+    office: 0
+  }
 };
 
 let data = loadGame();
@@ -38,7 +44,13 @@ let lastAutoTime = Date.now();
 function loadGame() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) {
+      return {
+        ...DEFAULTS,
+        businesses: { ...DEFAULTS.businesses }
+      };
+    }
+
     const saved = JSON.parse(raw);
     const result = { ...DEFAULTS, ...saved };
 
@@ -49,19 +61,69 @@ function loadGame() {
       "pricePercent"
     ]) {
       const value = Number(result[key]);
-      result[key] = Number.isFinite(value) && value >= 0 ? value : DEFAULTS[key];
+      result[key] =
+        Number.isFinite(value) && value >= 0
+          ? value
+          : DEFAULTS[key];
     }
 
     if (!Array.isArray(result.pets)) result.pets = [];
-    result.pets = result.pets.filter(id => ["dog", "cat", "dragon"].includes(id));
-    if (![1, 2, 5, 10].includes(result.multiplier)) result.multiplier = 1;
-    if (!["purple", "blue", "green", "red"].includes(result.theme)) result.theme = "purple";
-    if (typeof result.shopEnabled !== "boolean") result.shopEnabled = true;
-    if (typeof result.maintenance !== "boolean") result.maintenance = false;
+    result.pets = result.pets.filter(
+      id => ["dog", "cat", "dragon"].includes(id)
+    );
+
+    // Добавляем бизнесы в старые сохранения.
+    if (
+      !result.businesses ||
+      typeof result.businesses !== "object" ||
+      Array.isArray(result.businesses)
+    ) {
+      result.businesses = { ...DEFAULTS.businesses };
+    } else {
+      result.businesses = {
+        ...DEFAULTS.businesses,
+        ...result.businesses
+      };
+    }
+
+    for (const id of Object.keys(DEFAULTS.businesses)) {
+      const count = Number(result.businesses[id]);
+      result.businesses[id] =
+        Number.isSafeInteger(count) && count >= 0
+          ? Math.min(count, 1000000)
+          : 0;
+    }
+
+    if (![1, 2, 5, 10].includes(result.multiplier)) {
+      result.multiplier = 1;
+    }
+
+    if (!["purple", "blue", "green", "red"].includes(result.theme)) {
+      result.theme = "purple";
+    }
+
+    if (typeof result.shopEnabled !== "boolean") {
+      result.shopEnabled = true;
+    }
+
+    if (typeof result.maintenance !== "boolean") {
+      result.maintenance = false;
+    }
+
+    if (
+      result.adminAutoOverride !== null &&
+      (!Number.isSafeInteger(result.adminAutoOverride) ||
+        result.adminAutoOverride < 0)
+    ) {
+      result.adminAutoOverride = null;
+    }
 
     return result;
   } catch {
-    return { ...DEFAULTS };
+    return {
+      ...DEFAULTS,
+      businesses: { ...DEFAULTS.businesses }
+    };
   }
 }
 
@@ -81,10 +143,15 @@ function showMessage(message) {
 
 function safeAdd(key, amount) {
   if (!Number.isSafeInteger(amount) || amount < 0) return false;
-  if (!Number.isSafeInteger(data[key]) || data[key] > Number.MAX_SAFE_INTEGER - amount) {
+
+  if (
+    !Number.isSafeInteger(data[key]) ||
+    data[key] > Number.MAX_SAFE_INTEGER - amount
+  ) {
     showMessage("Достигнут максимальный лимит.");
     return false;
   }
+
   data[key] += amount;
   return true;
 }
@@ -98,6 +165,7 @@ function addXP(amount) {
   if (data.xp > Number.MAX_SAFE_INTEGER - amount) return;
 
   data.xp += amount;
+
   while (data.level < 1000000 && data.xp >= xpForNextLevel()) {
     data.xp -= xpForNextLevel();
     data.level++;
@@ -107,9 +175,11 @@ function addXP(amount) {
 
 function petBonus() {
   let bonus = 0;
+
   if (data.pets.includes("dog")) bonus += 2;
   if (data.pets.includes("cat")) bonus += 10;
   if (data.pets.includes("dragon")) bonus += 50;
+
   return bonus;
 }
 
@@ -120,21 +190,166 @@ function clickIncome() {
   );
 }
 
+/* ===== БИЗНЕСЫ DR4KZ MONEY ===== */
+
+const BUSINESS_CATALOG = [
+  {
+    id: "lemonade",
+    name: "🥤 Ларёк с лимонадом",
+    cost: 500,
+    income: 10
+  },
+  {
+    id: "shop",
+    name: "🏪 Магазин",
+    cost: 5000,
+    income: 75
+  },
+  {
+    id: "gas",
+    name: "⛽ Автозаправка",
+    cost: 50000,
+    income: 500
+  },
+  {
+    id: "office",
+    name: "🏢 Бизнес-центр",
+    cost: 500000,
+    income: 5000
+  }
+];
+
+function businessIncome() {
+  return BUSINESS_CATALOG.reduce((sum, business) => {
+    const count = Number(data.businesses[business.id]) || 0;
+    return sum + count * business.income;
+  }, 0);
+}
+
+function businessCost(business, count) {
+  const rawCost = Math.floor(
+    business.cost * Math.pow(1.5, count)
+  );
+
+  if (!Number.isSafeInteger(rawCost) || rawCost < 1) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return price(rawCost);
+}
+
+function renderBusinesses() {
+  const container = $("businesses");
+  if (!container) return;
+
+  container.replaceChildren();
+
+  for (const business of BUSINESS_CATALOG) {
+    const count = Number(data.businesses[business.id]) || 0;
+    const cost = businessCost(business, count);
+
+    const row = document.createElement("div");
+    row.className = "pet";
+
+    const info = document.createElement("div");
+
+    const name = document.createElement("b");
+    name.textContent = business.name;
+
+    const desc = document.createElement("div");
+    desc.className = "muted";
+    desc.textContent =
+      "Куплено: " + count +
+      " · Доход: " +
+      (count * business.income).toLocaleString("ru-RU") +
+      " $/сек. · Цена: " +
+      cost.toLocaleString("ru-RU") + " $";
+
+    const button = document.createElement("button");
+    button.textContent = "Купить";
+
+    button.disabled =
+      !data.shopEnabled ||
+      data.maintenance ||
+      data.balance < cost ||
+      count >= 1000000;
+
+    button.addEventListener("click", () => {
+      if (data.maintenance) {
+        return showMessage("Игра на обслуживании.");
+      }
+
+      if (!data.shopEnabled) {
+        return showMessage("Магазин выключен.");
+      }
+
+      const currentCount =
+        Number(data.businesses[business.id]) || 0;
+
+      if (
+        !Number.isSafeInteger(currentCount) ||
+        currentCount >= 1000000
+      ) {
+        return showMessage("Достигнут лимит бизнеса.");
+      }
+
+      const currentCost = businessCost(
+        business,
+        currentCount
+      );
+
+      if (data.balance < currentCost) {
+        return showMessage("Недостаточно денег!");
+      }
+
+      data.balance -= currentCost;
+      data.businesses[business.id] = currentCount + 1;
+
+      saveGame();
+      render();
+
+      showMessage("Бизнес куплен: " + business.name + "!");
+    });
+
+    info.append(name, desc);
+    row.append(info, button);
+    container.append(row);
+  }
+
+  const incomeLabel = $("businessIncome");
+
+  if (incomeLabel) {
+    incomeLabel.textContent =
+      businessIncome().toLocaleString("ru-RU") + " $/сек.";
+  }
+}
+
+/* ===== АВТОЗАРАБОТОК ===== */
+
 function autoIncome() {
-  if (data.adminAutoOverride !== null) return data.adminAutoOverride;
-  return data.autoLevel * 5;
+  const normalIncome =
+    data.adminAutoOverride !== null
+      ? data.adminAutoOverride
+      : data.autoLevel * 5;
+
+  return normalIncome + businessIncome();
 }
 
 function earn(amount) {
   if (!Number.isSafeInteger(amount) || amount < 0) return false;
   if (!safeAdd("balance", amount)) return false;
+
   safeAdd("totalEarned", amount);
   addXP(Math.min(amount, 1000000));
+
   return true;
 }
 
 function price(base) {
-  return Math.max(1, Math.floor(base * data.pricePercent / 100));
+  return Math.max(
+    1,
+    Math.floor(base * data.pricePercent / 100)
+  );
 }
 
 function rankName() {
@@ -146,43 +361,86 @@ function rankName() {
 }
 
 function render() {
-  $("balance").textContent = Math.floor(data.balance).toLocaleString("ru-RU");
-  $("clicks").textContent = data.clicks.toLocaleString("ru-RU");
-  $("totalEarned").textContent = Math.floor(data.totalEarned).toLocaleString("ru-RU") + " $";
+  $("balance").textContent =
+    Math.floor(data.balance).toLocaleString("ru-RU");
+
+  $("clicks").textContent =
+    data.clicks.toLocaleString("ru-RU");
+
+  $("totalEarned").textContent =
+    Math.floor(data.totalEarned).toLocaleString("ru-RU") + " $";
+
   $("power").textContent = data.power;
-  $("upgradePrice").textContent = price(data.price).toLocaleString("ru-RU");
-  $("autoPrice").textContent = price(data.autoPrice).toLocaleString("ru-RU");
-  $("autoIncome").textContent = autoIncome().toLocaleString("ru-RU");
-  $("clickIncome").textContent = clickIncome().toLocaleString("ru-RU");
+
+  $("upgradePrice").textContent =
+    price(data.price).toLocaleString("ru-RU");
+
+  $("autoPrice").textContent =
+    price(data.autoPrice).toLocaleString("ru-RU");
+
+  $("autoIncome").textContent =
+    autoIncome().toLocaleString("ru-RU");
+
+  $("clickIncome").textContent =
+    clickIncome().toLocaleString("ru-RU");
+
   $("multiplier").textContent = data.multiplier;
   $("level").textContent = data.level;
   $("xp").textContent = data.xp;
   $("rank").textContent = rankName();
-  $("xpBar").style.width = Math.min(100, data.xp / xpForNextLevel() * 100) + "%";
+
+  $("xpBar").style.width =
+    Math.min(100, data.xp / xpForNextLevel() * 100) + "%";
+
   $("rebirths").textContent = data.rebirths;
-  $("rebirthCost").textContent = rebirthCost().toLocaleString("ru-RU");
+  $("rebirthCost").textContent =
+    rebirthCost().toLocaleString("ru-RU");
+
   $("rebirthBonus").textContent = data.permanentBonus;
   $("playerName").value = data.playerName;
   $("avatarBtn").textContent = data.avatar;
   $("theme").value = data.theme;
+
   document.body.dataset.theme = data.theme;
 
-  $("buyUpgrade").disabled = !data.shopEnabled || data.balance < price(data.price) || data.maintenance;
-  $("buyAuto").disabled = !data.shopEnabled || data.balance < price(data.autoPrice) || data.maintenance;
+  $("buyUpgrade").disabled =
+    !data.shopEnabled ||
+    data.balance < price(data.price) ||
+    data.maintenance;
+
+  $("buyAuto").disabled =
+    !data.shopEnabled ||
+    data.balance < price(data.autoPrice) ||
+    data.maintenance;
+
   $("clickButton").disabled = data.maintenance;
-  $("dailyButton").disabled = data.maintenance || claimedToday();
-  $("rebirthButton").disabled = data.maintenance || data.balance < rebirthCost();
+
+  $("dailyButton").disabled =
+    data.maintenance || claimedToday();
+
+  $("rebirthButton").disabled =
+    data.maintenance || data.balance < rebirthCost();
 
   $("dailyInfo").textContent = claimedToday()
     ? "Сегодня бонус уже получен. Возвращайся завтра!"
-    : "Серия: " + data.dailyStreak + " дн. Следующий бонус доступен сейчас.";
+    : "Серия: " + data.dailyStreak +
+      " дн. Следующий бонус доступен сейчас.";
 
   renderPets();
+  renderBusinesses();
+
   document.querySelectorAll("[data-mult]").forEach(button => {
     const m = Number(button.dataset.mult);
     const cost = multiplierCost(m);
-    button.disabled = data.maintenance || !data.shopEnabled || data.balance < cost || data.multiplier >= m;
-    button.textContent = "×" + m + " — " + cost.toLocaleString("ru-RU") + " $";
+
+    button.disabled =
+      data.maintenance ||
+      !data.shopEnabled ||
+      data.balance < cost ||
+      data.multiplier >= m;
+
+    button.textContent =
+      "×" + m + " — " + cost.toLocaleString("ru-RU") + " $";
   });
 }
 
@@ -198,28 +456,49 @@ function renderPets() {
 
   for (const pet of catalog) {
     const owned = data.pets.includes(pet.id);
+
     const row = document.createElement("div");
     row.className = "pet";
 
     const info = document.createElement("div");
+
     const name = document.createElement("b");
     name.textContent = pet.name;
+
     const desc = document.createElement("div");
     desc.className = "muted";
-    desc.textContent = owned ? "Уже куплен" : pet.bonus + " · " + pet.cost.toLocaleString("ru-RU") + " $";
+
+    desc.textContent = owned
+      ? "Уже куплен"
+      : pet.bonus + " · " +
+        price(pet.cost).toLocaleString("ru-RU") + " $";
+
     info.append(name, desc);
 
     const button = document.createElement("button");
     button.textContent = owned ? "Куплен" : "Купить";
-    button.disabled = owned || !data.shopEnabled || data.maintenance || data.balance < price(pet.cost);
+
+    button.disabled =
+      owned ||
+      !data.shopEnabled ||
+      data.maintenance ||
+      data.balance < price(pet.cost);
+
     button.addEventListener("click", () => {
       if (owned || !data.shopEnabled || data.maintenance) return;
+
       const cost = price(pet.cost);
-      if (data.balance < cost) return showMessage("Недостаточно денег!");
+
+      if (data.balance < cost) {
+        return showMessage("Недостаточно денег!");
+      }
+
       data.balance -= cost;
       data.pets.push(pet.id);
+
       saveGame();
       render();
+
       showMessage("Питомец куплен!");
     });
 
@@ -233,7 +512,9 @@ function multiplierCost(m) {
 }
 
 function rebirthCost() {
-  return Math.floor(100000 * Math.pow(5, Math.min(data.rebirths, 10)));
+  return Math.floor(
+    100000 * Math.pow(5, Math.min(data.rebirths, 10))
+  );
 }
 
 function claimedToday() {
@@ -241,88 +522,144 @@ function claimedToday() {
 }
 
 $("clickButton").addEventListener("click", () => {
-  if (data.maintenance) return showMessage("Игра на обслуживании.");
+  if (data.maintenance) {
+    return showMessage("Игра на обслуживании.");
+  }
+
   if (!safeAdd("clicks", 1)) return;
+
   if (!earn(clickIncome())) {
     data.clicks--;
     return;
   }
+
   saveGame();
   render();
 });
 
 $("buyUpgrade").addEventListener("click", () => {
   const cost = price(data.price);
-  if (data.maintenance || !data.shopEnabled) return showMessage("Магазин выключен.");
-  if (data.balance < cost) return showMessage("Недостаточно денег!");
+
+  if (data.maintenance || !data.shopEnabled) {
+    return showMessage("Магазин выключен.");
+  }
+
+  if (data.balance < cost) {
+    return showMessage("Недостаточно денег!");
+  }
+
   data.balance -= cost;
   data.power++;
   data.upgradeLevel++;
   data.price = Math.ceil(data.price * 1.6);
+
   saveGame();
   render();
+
   showMessage("Улучшение куплено!");
 });
 
 $("buyAuto").addEventListener("click", () => {
   const cost = price(data.autoPrice);
-  if (data.maintenance || !data.shopEnabled) return showMessage("Магазин выключен.");
-  if (data.balance < cost) return showMessage("Недостаточно денег!");
+
+  if (data.maintenance || !data.shopEnabled) {
+    return showMessage("Магазин выключен.");
+  }
+
+  if (data.balance < cost) {
+    return showMessage("Недостаточно денег!");
+  }
+
   data.balance -= cost;
   data.autoLevel++;
   data.autoPrice = Math.ceil(data.autoPrice * 1.8);
+
   saveGame();
   render();
+
   showMessage("Авто-доход улучшен!");
 });
 
 document.querySelectorAll("[data-mult]").forEach(button => {
   button.addEventListener("click", () => {
     const m = Number(button.dataset.mult);
-    if (data.maintenance || !data.shopEnabled) return showMessage("Магазин выключен.");
-    if (data.multiplier >= m) return showMessage("Этот множитель уже куплен!");
+
+    if (data.maintenance || !data.shopEnabled) {
+      return showMessage("Магазин выключен.");
+    }
+
+    if (data.multiplier >= m) {
+      return showMessage("Этот множитель уже куплен!");
+    }
+
     const cost = multiplierCost(m);
-    if (data.balance < cost) return showMessage("Недостаточно денег!");
+
+    if (data.balance < cost) {
+      return showMessage("Недостаточно денег!");
+    }
+
     data.balance -= cost;
     data.multiplier = m;
+
     saveGame();
     render();
+
     showMessage("Множитель активирован!");
   });
 });
 
 $("dailyButton").addEventListener("click", () => {
-  if (data.maintenance) return showMessage("Игра на обслуживании.");
-  if (claimedToday()) return showMessage("Бонус уже получен сегодня!");
+  if (data.maintenance) {
+    return showMessage("Игра на обслуживании.");
+  }
+
+  if (claimedToday()) {
+    return showMessage("Бонус уже получен сегодня!");
+  }
 
   const today = new Date().toLocaleDateString("en-CA");
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA");
+  const yesterday = new Date(
+    Date.now() - 86400000
+  ).toLocaleDateString("en-CA");
 
-  data.dailyStreak = data.dailyDate === yesterday ? data.dailyStreak + 1 : 1;
+  data.dailyStreak =
+    data.dailyDate === yesterday
+      ? data.dailyStreak + 1
+      : 1;
+
   data.dailyDate = today;
+
   const reward = Math.min(1000000, 500 * data.dailyStreak);
+
   if (!earn(reward)) return;
+
   saveGame();
   render();
+
   showMessage("Ежедневная награда: " + reward + " $!");
 });
 
 $("avatarBtn").addEventListener("click", () => {
   const avatars = ["😎", "🤑", "👑", "🐉", "🐺", "🚀", "💎"];
   const i = avatars.indexOf(data.avatar);
+
   data.avatar = avatars[(i + 1) % avatars.length];
+
   saveGame();
   render();
 });
 
 $("playerName").addEventListener("change", () => {
-  data.playerName = $("playerName").value.trim().slice(0, 20) || "DR4KZ";
+  data.playerName =
+    $("playerName").value.trim().slice(0, 20) || "DR4KZ";
+
   saveGame();
   render();
 });
 
 $("theme").addEventListener("change", () => {
   data.theme = $("theme").value;
+
   saveGame();
   render();
 });
@@ -333,22 +670,44 @@ $("saveButton").addEventListener("click", () => {
 });
 
 $("resetButton").addEventListener("click", () => {
-  if (!confirm("Точно сбросить весь прогресс? Это действие нельзя отменить.")) return;
-  data = { ...DEFAULTS };
+  if (!confirm("Точно сбросить весь прогресс? Это действие нельзя отменить.")) {
+    return;
+  }
+
+  data = {
+    ...DEFAULTS,
+    businesses: { ...DEFAULTS.businesses }
+  };
+
   saveGame();
   render();
+
   showMessage("Прогресс сброшен.");
 });
 
 $("rebirthButton").addEventListener("click", () => {
-  if (data.maintenance) return showMessage("Игра на обслуживании.");
-  const cost = rebirthCost();
-  if (data.balance < cost) return showMessage("Нужно больше денег для перерождения!");
+  if (data.maintenance) {
+    return showMessage("Игра на обслуживании.");
+  }
 
-  if (!confirm("Перерождение сбросит баланс, клики, уровни и улучшения. Продолжить?")) return;
+  const cost = rebirthCost();
+
+  if (data.balance < cost) {
+    return showMessage("Нужно больше денег для перерождения!");
+  }
+
+  if (!confirm(
+    "Перерождение сбросит баланс, клики, уровни, улучшения и бизнесы. Продолжить?"
+  )) {
+    return;
+  }
 
   data.rebirths++;
-  data.permanentBonus = Math.min(1000, data.permanentBonus + 0.5);
+  data.permanentBonus = Math.min(
+    1000,
+    data.permanentBonus + 0.5
+  );
+
   data.balance = 0;
   data.clicks = 0;
   data.totalEarned = 0;
@@ -361,14 +720,21 @@ $("rebirthButton").addEventListener("click", () => {
   data.xp = 0;
   data.level = 1;
 
+  data.businesses = { ...DEFAULTS.businesses };
+
   saveGame();
   render();
+
   showMessage("Перерождение успешно! Постоянный бонус увеличен.");
 });
 
 $("openAdmin").addEventListener("click", () => {
   const code = prompt("Введи код админ-панели:");
-  if (code !== ADMIN_CODE) return showMessage("Неверный код!");
+
+  if (code !== ADMIN_CODE) {
+    return showMessage("Неверный код!");
+  }
+
   $("adminPanel").hidden = false;
   showMessage("Админ-панель открыта.");
 });
@@ -379,21 +745,35 @@ $("closeAdmin").addEventListener("click", () => {
 
 $("giveMoney").addEventListener("click", () => {
   if ($("adminPanel").hidden) return;
+
   const amount = Number($("adminMoney").value);
-  if (!Number.isSafeInteger(amount) || amount < 0) return showMessage("Введи корректную сумму.");
+
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    return showMessage("Введи корректную сумму.");
+  }
+
   if (!earn(amount)) return;
+
   saveGame();
   render();
+
   showMessage("Деньги выданы.");
 });
 
 $("giveXP").addEventListener("click", () => {
   if ($("adminPanel").hidden) return;
+
   const amount = Number($("adminXP").value);
-  if (!Number.isSafeInteger(amount) || amount < 0) return showMessage("Введи корректный XP.");
+
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    return showMessage("Введи корректный XP.");
+  }
+
   addXP(amount);
+
   saveGame();
   render();
+
   showMessage("Опыт выдан.");
 });
 
@@ -406,11 +786,18 @@ $("applyAdmin").addEventListener("click", () => {
   const bonus = Number($("adminBonus").value);
   const prices = Number($("adminPrices").value);
 
-  if (!Number.isSafeInteger(power) || power < 1 ||
-      ![1, 2, 5, 10].includes(mult) ||
-      !Number.isSafeInteger(auto) || auto < 0 ||
-      !Number.isSafeInteger(bonus) || bonus < 0 ||
-      !Number.isFinite(prices) || prices < 10 || prices > 1000) {
+  if (
+    !Number.isSafeInteger(power) ||
+    power < 1 ||
+    ![1, 2, 5, 10].includes(mult) ||
+    !Number.isSafeInteger(auto) ||
+    auto < 0 ||
+    !Number.isSafeInteger(bonus) ||
+    bonus < 0 ||
+    !Number.isFinite(prices) ||
+    prices < 10 ||
+    prices > 1000
+  ) {
     return showMessage("Проверь значения настроек.");
   }
 
@@ -424,6 +811,7 @@ $("applyAdmin").addEventListener("click", () => {
 
   saveGame();
   render();
+
   showMessage("Настройки применены и сохранены.");
 });
 
@@ -431,14 +819,20 @@ render();
 
 setInterval(() => {
   const now = Date.now();
-  const elapsed = Math.min(10, (now - lastAutoTime) / 1000);
+  const elapsed = Math.min(
+    10,
+    (now - lastAutoTime) / 1000
+  );
+
   lastAutoTime = now;
 
   if (data.maintenance || elapsed <= 0) return;
 
   const amount = Math.floor(autoIncome() * elapsed);
+
   if (amount > 0 && earn(amount)) {
     saveGame();
     render();
   }
 }, 1000);
+
